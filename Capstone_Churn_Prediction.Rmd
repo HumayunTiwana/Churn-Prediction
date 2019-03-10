@@ -1,0 +1,876 @@
+---
+title: "Churn Prediction (Harvard PH125.9)"
+author: "Humayun Akram"
+date: "09 March 2019"
+output:
+  html_document:
+    fig_caption: yes
+    fig_width: 6
+  word_document:
+    fig_height: 4
+    fig_width: 4
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+<div style="page-break-after: always;"></div>
+
+### 1. **Introduction**
+
+#### 1.1 **Overview**
+A common expression in industry is that it costs five times more to acquire a new customer than it does to retain an existing one (Kirui et al., 2013). In sectors ranging from finance and telecom to cable service and insurance, significant sums of money are spent in reducing customer attrition. To prevent such attrition (churn), it is critical to be able to identify the early warning signs of churn (Van den Poel & Larivie 2004; Larivie`re & Van den Poel 2005).
+
+Thus, a key part of any business these days is to manage customer churn; that is, to avoid losing its customers and build its customer base (Mattison 2005; Tsai & Lu 2010; Nie et al., 2011). A common approach to combat customer churn relies on identifying customers who have a high likelihood of churning. These customers are then given incentives or a customized service plan in order to convince them to stay (Ngai et al., 2009; Khan et al., 2010).
+
+As part of second project in Harvard PH125.9 Capstone course, we will be building churn prediction models to address this classifcation problem. These models will predict potential churn customers for a sample of users based on training dataset. At the end, we will verify the performance of our models using Sensitivity, Accuracy and AUC.
+
+
+#### 1.2 **DataSet**
+This project is based on sample data from IBM Sample DataSets for customer retention programs which will be used to create churn prediction models. The dataset is available at below location:
+
+- [Telco CHurn dataset] https://community.watsonanalytics.com/wp-content/uploads/2015/03/WA_Fn-UseC_-Telco-Customer-Churn.csv?cm_mc_uid=58920755505115141495567&cm_mc_sid_50200000=1514149556&cm_mc_sid_52640000=1514149556"
+
+The dataset comprised of multiple rows/columns where each row represents a customer while each column contains a customer's attribute.
+
+#### 1.3 **Target**
+The target of this project is to predict behavior of customer attrition i.e. whether customer will churn or not churn, based on churn prediction model which will, in turn, help to improve customer loyalty and retention. 
+
+As the focus of this project is to improve customer loyalty and retention, we will focus majorly on **Sensitivity** (Total Postive Rate)  metric in addition to AUC & Accuracy. On the other hand, an average value of **Specificity** (True Negative Rate) will not cause any negative problem since the goal is to engage and communicate with the customers to prevent them from churning. Thus, its acceptable to engage with those who are mistakenly tagged as 'not churned'.
+
+#### 1.4 **Key Steps**
+In this project, we will use the above mnetioned telco churn dataset. Major steps for this project is detailed as below:  
+
+* Load the data and do initial exploration  
+* Insight analysis and vizualization 
+* Data Cleansing & Preprocessing
+* Build 5 models based on the churn training dataset   
+* Validate the models performance for test dataset.
+
+<div style="page-break-after: always;"></div>
+
+### 2. **Analysis**
+
+#### 2.1 **Data Loading & Exploration**
+
+We will start off by loading the data code provided by the IBM smaple churn dataset.   
+
+```{r, include=FALSE}
+
+#check for installed packages
+if(!require(readr)) install.packages("readr")
+if(!require(ggrepel)) install.packages("ggrepel")
+if(!require(ggthemes)) install.packages("ggthemes")
+if(!require(stringr)) install.packages("stringr")
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(gridExtra)) install.packages("gridExtra")
+if(!require(dplyr)) install.packages("dplyr")
+if(!require(tidyr)) install.packages("tidyr")
+if(!require(dslabs)) install.packages("dslabs")
+if(!require(data.table)) install.packages("data.table")
+if(!require(tidyverse)) install.packages("tidyverse")
+if(!require(caret)) install.packages("caret")
+if(!require(knitr)) install.packages("knitr")
+if(!require(lubridate)) install.packages("lubridate")
+if(!require(gridExtra)) install.packages("gridExtra")
+if(!require(ggcorrplot)) install.packages("ggcorrplot")
+if(!require(RColorBrewer)) install.packages("RColorBrewer")
+if(!require(kableExtra)) install.packages("kableExtra")
+if(!require(cowplot)) install.packages("cowplot")
+if(!require(rpart.plot)) install.packages("rpart.plot")
+if(!require(ROCR)) install.packages("ROCR")
+if(!require(car)) install.packages("car")
+if(!require(gmodels)) install.packages("gmodels")
+
+
+library(readr)
+library(MASS)
+library(caret)
+library(kableExtra)
+library(gmodels)
+library(car)
+library(e1071)
+library(C50)
+library(caret)
+library(rpart.plot)
+library(rpart)
+library(ROCR)
+library(cowplot)
+library(dplyr)
+library(ggcorrplot)
+library(corrplot)
+library(RColorBrewer)
+library(gridExtra)
+library(dslabs)
+library(data.table)
+library(ggrepel)
+library(ggthemes)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(knitr)
+
+
+# Telco Churn Prediction dataset:
+# https://community.watsonanalytics.com/wp-content/uploads/2015/03/WA_Fn-UseC_-Telco-Customer-Churn.csv?cm_mc_uid=58920755505115141495567&cm_mc_sid_50200000=1514149556&cm_mc_sid_52640000=1514149556"
+
+
+dl <- tempfile()
+download.file("https://community.watsonanalytics.com/wp-content/uploads/2015/03/WA_Fn-UseC_-Telco-Customer-Churn.csv?cm_mc_uid=58920755505115141495567&cm_mc_sid_50200000=1514149556&cm_mc_sid_52640000=1514149556", dl)
+
+churn_dataset = read_csv(dl)
+
+```
+
+
+##### 2.1.1 **Data Check**
+
+Once loaded, we can see that churn dataset has  **7043** rows and **21** columns.
+
+```{r, include=FALSE, echo=FALSE}
+
+#####################################################################
+######################### Data Check ################################
+#####################################################################
+
+# Overview of edx Data
+head(churn_dataset)
+
+#To see variables structure 
+str(churn_dataset)
+
+```
+
+Let's have an overview of churn dataset and verify if it has any missing/null values
+
+```{r, include=TRUE, echo=FALSE}
+#Rows and columns of edx
+dim(churn_dataset)
+
+# Checking edx missing values
+any(is.na(churn_dataset))
+
+# Summary of the dataset
+summary(churn_dataset)
+
+churn_dataset <- churn_dataset[complete.cases(churn_dataset),] 
+
+```
+
+It can be seen from summary that TotalCharges have 11 NAs.However, being very low count, we can remove these rows from the dataset.
+
+```{r, include=TRUE, echo=FALSE}
+#Distinct Values in dataset
+unique <- data.frame(lapply(churn_dataset, function(x) length(table(x))))
+unique <- gather(unique, key="Attributes", value="unique_values")
+unique %>%arrange(desc(unique_values))
+
+```
+
+Next up, we can see from dataset that there are 3 contnuous features while rest are all categorical attributes.
+
+##### 2.1.2 **Data Summarization**
+
+Summarization shows that Monthly Charges have pretty much uniform distribution with Median value at 70. Hoewver, TotalCharges distribution appeared to be highly skewed.
+
+An overview of variables are given as below:
+
+```{r, include=TRUE, echo=FALSE}
+#Rows and columns of edx
+glimpse(churn_dataset)
+```
+
+
+```{r, include=FALSE, echo=FALSE}
+
+# Summary of the dataset
+summary(churn_dataset)
+
+```
+
+
+#### 2.2 **Insights Analysis & Vizualization**
+
+##### 2.2.1 **Churn Customers Distribution**
+
+From Churn column, we can see the customers who have churned and it's showing us that ~26% of customers have churned based on given dataset.
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+#####################################################################
+######################### Distribution Insights #####################
+#####################################################################
+
+
+# Churn Customers Distribution
+churn_dataset %>%
+  group_by(Churn) %>%
+  summarize(n = n()) %>%
+  mutate("Share"=paste(round(100*n/sum(n),2),"%",sep="")) %>%
+  ggplot(aes(x = Churn, y=Share)) +
+  geom_bar(stat="identity",colour = "royalblue", fill = "royalblue") +
+  theme(axis.text.x = element_text(angle = 90, vjust=0.25, hjust = 1)) +
+  labs(title = "Distribution of Churn Customers", x = "Churn", y = "Share")
+```
+
+##### 2.2.2 **Continuous Features Distribution**
+
+Starting our data exploration with continuous features, we can see a clear diference between churn and non-churn segment for MonthlyCharges below $25 as churn customers don't have much presence in that section of MonthlyCharges. For rest of bins, the count is pretty much same between churn and non-churn customers.   
+
+```{r, include=TRUE,echo=FALSE,fig.align='center'}
+
+# Distribution for Continuous features w.r.t churn
+
+ggplot(data = churn_dataset, aes(MonthlyCharges, color = Churn))+
+  scale_color_brewer(palette = "Dark2") +
+  geom_freqpoly(binwidth = 2, size = 1)+
+  labs(title = "Monthly Charges vs Customer Count", x = "Monthly Charges", y = "Count")
+
+```
+
+For TotalCharges, the distribution is almost same for churn and non-churn segment as it's right skewed for both the cases. 
+
+
+```{r, include=TRUE,echo=FALSE,fig.align='center'}
+# Distribution for Continuous features w.r.t churn
+
+ggplot(data = churn_dataset, aes(TotalCharges, color = Churn))+
+  geom_freqpoly(binwidth = 100, size = 1)+
+  scale_color_brewer(palette = "Dark2") +
+  labs(title = "Total Charges vs Customer Count", x = "Total Charges", y = "Count")
+
+```
+
+For tenure, we can see a very interesting distribution. For new joiners, we can see a high count for both churn and non-churn customers, indicating that chances of attrition is high for new-joiners (which is typical for many service industries). However, the second spike can be seen in >60 months segment where majority of nonchurn chustomers are present indicating that service provider has pretty much loyal customer base.
+
+
+```{r, include=TRUE,echo=FALSE,fig.align='center'}
+# Distribution for Continuous features w.r.t churn
+
+ggplot(data = churn_dataset, aes(tenure, colour = Churn))+
+  geom_freqpoly(binwidth = 2, size = 1)+
+  scale_color_brewer(palette = "Dark2") +
+  labs(title = "Tenure vs Customer Count", x = "Tenure", y = "Count")  
+
+```
+
+
+##### 2.2.3 **Data Correlation**
+
+The correlation plot shows TotalCharges are positively correlated with Tenure & MonthlyCharges
+
+```{r, include=TRUE,echo=FALSE,fig.align='center'}
+# Distribution for Continuous features w.r.t churn
+
+options(repr.plot.width =6, repr.plot.height = 4)
+churn_cor <- round(cor(churn_dataset[,c("tenure", "MonthlyCharges", "TotalCharges")]), 1)
+ggcorrplot(churn_cor, hc.order = TRUE, type = "full",method="circle",title="Correlation")
+   
+
+```
+
+
+##### 2.2.4 **Categorical Features Distribution**
+
+Moving on to categorical features, we can see that for certain variables like Gender, PhoneService & MultipleLines have almost no impact on churn rate. However, high churn can be seen for case of senior citizens. Similarly, it can also be observed that customers with Partners & Dependents are less prone to churn. Thus, Partners & Dependants have significance in terms of customers loyalty.
+
+```{r, include=TRUE, echo=FALSE,fig.height = 8, fig.width =8,fig.align='center'}
+
+# Distribution for Categorical features w.r.t churn
+
+#Customer Attributes
+options(repr.plot.width = 12, repr.plot.height = 10)
+plot_grid(ggplot(churn_dataset, aes(x=gender,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)), 
+          ggplot(churn_dataset, aes(x=SeniorCitizen,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)),
+          ggplot(churn_dataset, aes(x=PhoneService,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)),
+          ggplot(churn_dataset, aes(x=MultipleLines,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)),
+          ggplot(churn_dataset, aes(x=Partner,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)),
+          ggplot(churn_dataset, aes(x=Dependents,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 12)),
+          align = "h")
+
+```
+
+For service attributes, we can see that Fiber Optic for InternetServices is an important feature as churn rate is very high for these customers.Further, customers with "No" for services like OnlineSecurity & DeviceProtection are more prone to churn.
+
+```{r, include=TRUE, echo=FALSE,fig.height = 8, fig.width =8,fig.align='center'}
+
+#Service Attributes
+options(repr.plot.width = 12, repr.plot.height = 10)
+plot_grid(ggplot(churn_dataset, aes(x=InternetService,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)), 
+          ggplot(churn_dataset, aes(x=StreamingTV,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)),
+          ggplot(churn_dataset, aes(x=StreamingMovies,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)),
+          ggplot(churn_dataset, aes(x=OnlineSecurity,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)),
+          ggplot(churn_dataset, aes(x=DeviceProtection,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 14)),
+          align = "h")
+
+```
+
+For contract feature, a clear distinction can be seen between short term & long term contracts i.e. monthly subscription customers have much higher churn rate as compared to yearly subscriptions. Secondly, customers with "No" for services like TechSupport & OnlineBackup are also more prone to churn. Finally, we can see that customers with paperless billing & with ElectronicCheck Payment Method tend to have a high churn rate as compared to others. 
+
+
+```{r, include=TRUE, echo=FALSE,fig.height = 8, fig.width =10,fig.align='center'}
+
+#Billing & Contract Attributes
+options(repr.plot.width = 12, repr.plot.height = 10)
+plot_grid(ggplot(churn_dataset, aes(x=Contract,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)), 
+          ggplot(churn_dataset, aes(x=PaperlessBilling,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)),
+          ggplot(churn_dataset, aes(x=PaymentMethod,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+theme(axis.text.x = element_text(angle = 90, vjust=0.5, hjust = 1)) +scale_x_discrete(labels = function(x) str_wrap(x, width = 10)),
+          ggplot(churn_dataset, aes(x=TechSupport,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)),
+          ggplot(churn_dataset, aes(x=OnlineBackup,fill=Churn))+ geom_bar(position = 'fill')+scale_fill_manual(values = c("green3","red3")) +theme_bw()+scale_x_discrete(labels = function(x) str_wrap(x, width = 10)),
+          align = "h")
+
+```
+
+
+
+#### 2.3 **Data Preprocessing**
+
+Before Modeling, we will perform data preprocessing so that it can be readily used. 
+
+* Firstly, since Customer ID has no impact on churn, we can remove it from the dataset
+
+
+```{r, include=TRUE, echo=TRUE,fig.align='center'}
+
+#####################################################################
+######################### Data Proprocessing ########################
+#####################################################################
+
+# Remove Unwanted Variables
+churn_dataset <- churn_dataset[, -1]
+
+```
+
+* Secondly, we will cleanse the categorical attributes and recode them accordingly.
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+# Encode Variables i.e. replacing Churn status with Yes as 1 and No as 0
+churn_dataset$Churn <- replace(churn_dataset$Churn, churn_dataset$Churn == "No", 0)
+churn_dataset$Churn <- replace(churn_dataset$Churn, churn_dataset$Churn == "Yes", 1)
+churn_dataset$Churn <- as.numeric(churn_dataset$Churn)
+
+```
+
+* After that, we will encode all other categorical variables in the dataset. 
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+# Recoding all other categorical variables.
+churn_dataset$gender <- recode(churn_dataset$gender, "'Male'=1; 'Female'=0")
+churn_dataset$Partner <- recode(churn_dataset$Partner, "'Yes'=1; 'No'=0")
+churn_dataset$Dependents <- recode(churn_dataset$Dependents, "'Yes'=1; 'No'=0")
+churn_dataset$PhoneService <- recode(churn_dataset$PhoneService, "'Yes'=1; 'No'=0")
+churn_dataset$MultipleLines <- recode(churn_dataset$MultipleLines, "'Yes'=1; 'No'=0;'No phone service'=3")
+churn_dataset$InternetService <- recode(churn_dataset$InternetService, "'No'=0; 'DSL'=1;'Fiber optic'=2")
+churn_dataset$OnlineSecurity <- recode(churn_dataset$OnlineSecurity, "'No'=0; 'Yes'=1;'No internet service'=2")
+churn_dataset$OnlineBackup <- recode(churn_dataset$OnlineBackup, "'No'=0; 'Yes'=1;'No internet service'=2")
+churn_dataset$DeviceProtection <- recode(churn_dataset$DeviceProtection, "'No'=0; 'Yes'=1;'No internet service'=2")
+churn_dataset$TechSupport <- recode(churn_dataset$TechSupport, "'No'=0; 'Yes'=1;'No internet service'=2")
+churn_dataset$StreamingTV <- recode(churn_dataset$StreamingTV, "'No'=0; 'Yes'=1;'No internet service'=2")
+churn_dataset$StreamingMovies <- recode(churn_dataset$StreamingMovies, "'No'=0; 'Yes'=1;'No internet service'=2")
+churn_dataset$Contract <- recode(churn_dataset$Contract, "'Month-to-month'=0; 'One year'=1;'Two year'=2")
+churn_dataset$PaperlessBilling <- recode(churn_dataset$PaperlessBilling, "'Yes'=1; 'No'=0")
+churn_dataset$PaymentMethod <- recode(churn_dataset$PaymentMethod, "'Electronic check'=1; 'Mailed check'=2;'Bank transfer (automatic)'=3; 'Credit card (automatic)'=4")
+
+#convert column to factor
+churn_dataset[, 'Churn'] <- lapply(churn_dataset[, 'Churn'], factor)
+
+```
+
+* Next step is to convert column to factors.
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+## Converting factor variables
+churn_dataset$gender <- factor(churn_dataset$gender)
+churn_dataset$SeniorCitizen <- factor(churn_dataset$SeniorCitizen )
+churn_dataset$Partner <- factor(churn_dataset$Partner)
+churn_dataset$Dependents <- factor(churn_dataset$Dependents)
+churn_dataset$PhoneService <- factor(churn_dataset$PhoneService)
+churn_dataset$MultipleLines <- factor(churn_dataset$MultipleLines)
+churn_dataset$InternetService <- factor(churn_dataset$InternetService)
+churn_dataset$OnlineSecurity <- factor(churn_dataset$OnlineSecurity)
+churn_dataset$OnlineBackup <- factor(churn_dataset$OnlineBackup)
+churn_dataset$DeviceProtection <- factor(churn_dataset$DeviceProtection)
+churn_dataset$TechSupport <- factor(churn_dataset$TechSupport)
+churn_dataset$StreamingTV <- factor(churn_dataset$StreamingTV)
+churn_dataset$StreamingMovies <- factor(churn_dataset$StreamingMovies)
+churn_dataset$Contract <- factor(churn_dataset$Contract)
+churn_dataset$PaperlessBilling <- factor(churn_dataset$PaperlessBilling)
+churn_dataset$PaymentMethod <- factor(churn_dataset$PaymentMethod)
+```
+
+After above mentioned modifications, below is the final shape of churn dataset.
+
+```{r, include=TRUE, echo=FALSE}
+#Rows and columns of edx
+glimpse(churn_dataset)
+```
+
+<div style="page-break-after: always;"></div>
+
+#### 2.4 **Data Modeling**
+
+For data modeling, we will start off by creating test and train datasets by using 75-25 split.
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+#####################################################################
+######################### Modeling ##################################
+#####################################################################
+
+# For training and testing purpose,we will divide the data in 75-25 ratio
+
+set.seed(111)
+train.index <- createDataPartition(y = churn_dataset$Churn, p = 0.75, list = FALSE, times = 1)
+train <- churn_dataset[train.index,]
+test <- churn_dataset[ - train.index,]
+
+```
+
+##### 2.4.1 **Logistic Regression Model**
+
+To start, we will use logistic regression to predict customers churn for this dataset.
+
+Regression is considered to be a good technique for identifying and predicting customer satisfaction. For each of the variables in a regression model, the standard error rate is calculated using SPSS. Then the variables with the most significance in respect to linear regressions for churn prediction are obtained and a regression model is constructed.
+
+Here, we will be using forward (step up) selection procedure to select the best features to be used in regression. 
+
+```{r, include=FALSE, echo=FALSE,fig.align='center'}
+
+############## Logistic Regression Model  ###################
+
+# Using forward (step up) selection procedure to find most suitable features. Lowest AIC will indicate good model
+
+fullMod = glm(Churn ~ ., data = train, family = binomial)
+
+summary(fullMod)
+
+intMod <- glm(Churn ~ 1, data = train, family = binomial)
+
+summary(intMod)
+
+fwdSelection = step(intMod, scope = list(lower = formula(intMod), upper = formula(fullMod)), direction = "forward")
+
+formula(fwdSelection)
+summary(fwdSelection)
+
+```
+
+Next up, we will use selected variables for logistic regression modeling. 
+
+```{r, include=FALSE, echo=FALSE,fig.align='center'}
+
+# Using selected variables for LR Modeling
+
+logic_reg <- glm(Churn ~ Contract + InternetService + tenure +MultipleLines + PaymentMethod + PaperlessBilling + TotalCharges + OnlineSecurity + TechSupport + SeniorCitizen + StreamingMovies + StreamingTV +MonthlyCharges, data = train, family = binomial)
+
+summary(logic_reg)
+
+glm.pred <- predict(logic_reg, test, type = 'response')
+
+
+```
+
+The confusion matrix, thus, formed is shown as below. 
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+#Confusion Matrix
+CrossTable(test$Churn, glm.pred > 0.5, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('ACTUAL', 'PREDICTED'))
+
+glmpred <- prediction(glm.pred, test$Churn)
+glmperf <- performance(glmpred, 'tpr', 'fpr')
+```
+
+Let's evaluate the performance of this model by using cutoff of 0.5
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+#Model Performance by using a cutoff of 0.5
+pred.churn <- factor(ifelse(glm.pred >= 0.50, "Yes", "No"))
+actual.churn <- factor(ifelse(test$Churn==1,"Yes","No"))
+table(actual.churn,pred.churn)
+cutoff.churn <- factor(ifelse(glm.pred >=0.50, "Yes", "No"))
+lr_conf <- confusionMatrix(cutoff.churn, actual.churn, positive = "Yes")
+lr_accuracy <- lr_conf$overall[1]
+lr_sensitivity <- lr_conf$byClass[1]
+lr_specificity <- lr_conf$byClass[2]
+lr_accuracy
+lr_sensitivity
+lr_specificity
+
+```
+
+As can be seen that with cutoff of 0.50, although we are achieving good accuracy and specificity, the sensitivity appeared to be very less. Let's tweak the cutoff value to 0.4 to improve sensitivity.
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+#Tweaking the cutoff to 0.4 and re-evaluating performance
+pred.churn <- factor(ifelse(glm.pred >= 0.40, "Yes", "No"))
+actual.churn <- factor(ifelse(test$Churn==1,"Yes","No"))
+table(actual.churn,pred.churn)
+cutoff.churn <- factor(ifelse(glm.pred >=0.40, "Yes", "No"))
+lr_conf <- confusionMatrix(cutoff.churn, actual.churn, positive = "Yes")
+lr_accuracy <- lr_conf$overall[1]
+lr_sensitivity <- lr_conf$byClass[1]
+lr_specificity <- lr_conf$byClass[2]
+lr_accuracy
+lr_sensitivity
+lr_specificity
+
+
+#AUC
+glm.perf <- performance(glmpred, measure = 'auc')
+glm.perf <- glm.perf@y.values[[1]]
+print(glm.perf)
+
+```
+
+Summarizing the results of 1st model in below table.
+
+```{r, include=TRUE, echo=FALSE}
+
+#Summarizing the results
+results <- data_frame(Method = "Logistic_Regression", Accuracy=lr_accuracy,Sensitivity = lr_sensitivity,Specificity=lr_specificity,AUC=glm.perf)
+kable(results,align=rep("c",3)) %>% 
+  kable_styling(full_width = F) %>% 
+  column_spec(1:5,bold=T,border_right = T,color='royalblue')
+
+```
+
+
+##### 2.4.2 **LDA Model**
+
+Let's try Linear Discriminant Analysis(LDA) model to perform churn prediction. LDA is a very common technique used for supervised classification problems. Basically, a dimensionality reduction technique, the main goal of LDA is to reduce the dimensions by removing the reduntant and dependent features by transforming the features from higher dimensional space to a space with lower dimensions.
+
+Training LDA model and testing on 25% data. 
+
+```{r, include=FALSE, echo=FALSE}
+########################## LDA Modeling #################
+
+#Training LDA model
+lda = trainControl(method = "none")
+lda_fit = train(Churn ~ ., data = train, method = "lda", metric = "Accuracy", preProc = c("center", "scale"), trControl = lda)
+
+# Running the model on test data
+ldapred = predict(lda_fit, newdata = test, type="raw")
+
+#Confusion Matrix
+lda_conf<-confusionMatrix(table(ldapred, test$Churn))
+
+
+```
+
+The confusion matrix, thus, formed is shown as below. 
+
+```{r, echo=FALSE,fig.align='center'}
+
+#Confusion Matrix
+CrossTable(test$Churn, ldapred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('ACTUAL', 'PREDICTED'))
+
+# Prediction, probability
+ldapred<- predict(lda_fit,test,type = "prob")
+lda.pred.prob.val <- prediction(ldapred[,2],test$Churn)
+lda.pred.prob.perf <- performance(lda.pred.prob.val,"auc")
+
+
+```
+
+For model performance, it can be seen that we are getting much better sensitivity values as compared to Logistic Regression
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+#Model Performance
+lda_accuracy <- lda_conf$overall[1]
+lda_sensitivity <- lda_conf$byClass[1]
+lda_specificity <- lda_conf$byClass[2]
+lda_accuracy
+lda_sensitivity
+lda_specificity
+
+#Summarizing the results
+results <- bind_rows(results, data_frame(Method = "LDA Model", Accuracy=lda_accuracy,Sensitivity = lda_sensitivity,Specificity=lda_specificity,AUC=(lda.pred.prob.perf@y.values[[1]])))
+
+kable(results,align=rep("c",3)) %>% 
+  kable_styling(full_width = F) %>% 
+  column_spec(1:5,bold=T,border_right = T,color='royalblue')
+
+```
+
+##### 2.4.3 **Decision Tree Model**
+
+The decision tree is the most prominent predictive model that is used for the purpose of classification. The decision tree consists of two steps, tree building and tree pruning. In tree building, the training set data is recursively partitioned in accordance with the values of the attributes. 
+
+This process goes on until there is no one partition is left to have identical values. In this process some values may be removed from the data due to noisy
+data.The largest estimated error rate branches are selected and then removed in pruning. 
+
+Let's use decision tree to predict customers churn
+
+```{r, include=TRUE, echo=FALSE, fig.height = 8, fig.width =8 ,fig.align='center'}
+
+#################### Decision Tree  ################################
+
+
+#Decision Tree
+
+set.seed(222)
+
+options(repr.plot.width = 6, repr.plot.height = 4)
+
+# Training the model
+tree_fit <- rpart(Churn ~ ., data = train, method = "class")
+
+# Plotting decision tree
+rpart.plot(tree_fit,type = 4,extra = 2,under = TRUE,fallen.leaves = F)
+
+# Prediction
+tree_pred <- predict(tree_fit,test, type = "class")
+
+dt_conf<-confusionMatrix(table(tree_pred,test$Churn))
+
+```
+
+For model performance, decision tree model got an Accuracy of 0.783 with Sesnsitvity of 0.85.
+
+```{r, include=TRUE, echo=TRUE,fig.align='center'}
+
+# Prediction/Probability
+treepred <- predict(tree_fit,test,type = "prob")
+tree.pred.prob.val <- prediction(treepred[,2],test$Churn)
+tree.pred.prob.perf <- performance(tree.pred.prob.val,"auc")
+
+
+#Model Performance
+dt_accuracy <- dt_conf$overall[1]
+dt_sensitivity <- dt_conf$byClass[1]
+dt_specificity <- dt_conf$byClass[2]
+dt_accuracy
+dt_sensitivity
+dt_specificity
+
+```
+
+Results can be summarized as below.
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+#Summarizing the results
+results <- bind_rows(results, data_frame(Method = "Decision Tree Model", Accuracy=dt_accuracy,Sensitivity = dt_sensitivity,Specificity=dt_specificity,AUC=(tree.pred.prob.perf@y.values[[1]])))
+
+kable(results,align=rep("c",3)) %>% 
+  kable_styling(full_width = F) %>% 
+  column_spec(1:5,bold=T,border_right = T,color='royalblue')
+
+```
+
+
+##### 2.4.4 **Random Forest Model**
+
+Next, we will use Random Forest i.e. use multiple decision trees to make predictions. 
+
+Single decision trees on their own can be very effective at learning non-linear relationships (low bias, but high variance). Due to their high variance, they can tend to over-fit. Random forest reduces this variance by averaging many trees (at the sacrifice of a slight increase in the bias).
+
+```{r, include=FALSE, echo=FALSE,fig.align='center'}
+
+################### Random Forest Model ####################
+
+
+# Random Forest is an ensemble learning  based classification technique and commonly used for predictive modeling. 
+
+library(randomForest)
+set.seed(333)
+rf <- randomForest(Churn ~ ., data = train, ntree = 1000, importance = T)
+
+print(rf)
+importance(rf)
+
+varImpPlot(rf, type = 1, pch = 19, col = 1, cex = 1.0, main = "Mean Decrease Accuracy Plot")
+abline(v = 35, col = "blue")
+
+varImpPlot(rf, type = 2, pch = 19, col = 1, cex = 1.0, main = "Mean Decrease Gini Plot")
+
+rfpred <- predict(rf, test[, -20], type = 'response')
+rf_conf<-confusionMatrix(table(rfpred, test$Churn))
+
+```
+
+The confusion matrix, thus, formed is shown as below. 
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+#Confusion Matrix
+CrossTable(test$Churn, rfpred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('ACTUAL', 'PREDICTED'))
+
+# Probability/AUC
+rfpred<- predict(rf,test,type = "prob")
+rf.pred.prob.val <- prediction(rfpred[,2],test$Churn)
+rf.pred.prob.perf <- performance(rf.pred.prob.val,"auc")
+
+
+#Model Performance
+rf_accuracy <- rf_conf$overall[1]
+rf_sensitivity <- rf_conf$byClass[1]
+rf_specificity <- rf_conf$byClass[2]
+rf_accuracy
+rf_sensitivity
+rf_specificity
+
+```
+
+Results can be summarized as below.
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+#Summarizing the results
+results <- bind_rows(results, data_frame(Method = "Random Forest Model", Accuracy=rf_accuracy,Sensitivity = rf_sensitivity,Specificity=rf_specificity,AUC=(rf.pred.prob.perf@y.values[[1]])))
+
+kable(results,align=rep("c",3)) %>% 
+  kable_styling(full_width = F) %>% 
+  column_spec(1:5,bold=T,border_right = T,color='royalblue')
+```
+
+##### 2.4.5 **Support Vector Machine (SVM) Model**
+
+The SVM classifier deals with linear permutation of subset of the training set by finding a maximum edge over energized plane. SVM algorithm works on finding a hyperplane which will maximize the distance between the hyperplane and the support vectors. The formulation of the hyperplane can be both linear and non-linear.
+
+Applying SVM on churn dataset.
+
+```{r, include=FALSE, cache=TRUE,echo=FALSE,fig.align='center'}
+
+############### Support Vector Machine (SVM) Model  ###################
+
+
+# Will take long time to execute. The aim is to find best values for parameters
+
+set.seed(444)
+svm <- tune.svm(Churn ~ ., data = train, 
+                seq(0.5, 0.9, by = 0.1), cost = seq(100, 1000, by = 100), 
+                kernel = "radial", tunecontrol = tune.control(cross = 10))
+
+print(svm)
+summary(svm)
+svm$performances
+
+# Find the best SVM model
+svmfit <- svm$best.model
+
+svmpred<- predict(svmfit,test,type = "prob")
+
+svm_conf<-confusionMatrix(table(svmpred, test$Churn))
+
+
+
+```
+
+The confusion matrix and model performance can be shown as below. 
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+#Confusion Matrix
+CrossTable(test$Churn, svmpred, prop.chisq = FALSE, prop.c = FALSE, prop.r = FALSE, dnn = c('ACTUAL', 'PREDICTED'))
+
+# Probability/AUC
+svmpred <- as.numeric(levels(svmpred))[svmpred]
+svm.pred.prob.val <- prediction(svmpred, test$Churn)
+svm.pred.prob.perf <- performance(svm.pred.prob.val, measure = 'auc')
+
+#Model Performance
+svm_accuracy <- svm_conf$overall[1]
+svm_sensitivity <- svm_conf$byClass[1]
+svm_specificity <- svm_conf$byClass[2]
+svm_accuracy
+svm_sensitivity
+svm_specificity
+
+```
+
+Results can be summarized as below.
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+#Summarizing the results
+results <- bind_rows(results, data_frame(Method = "SVM Model", Accuracy=svm_accuracy,Sensitivity = svm_sensitivity,Specificity=svm_specificity,AUC=(svm.pred.prob.perf@y.values[[1]])))
+
+kable(results,align=rep("c",3)) %>% 
+  kable_styling(full_width = F) %>% 
+  column_spec(1:5,bold=T,border_right = T,color='royalblue')
+```
+
+<div style="page-break-after: always;"></div>
+
+### 3. **Results**
+
+Let's plot ROC curves for each of these models.
+
+```{r, include=TRUE, echo=FALSE,fig.align='center'}
+
+#Plotting and comparing ROC curves for all models
+plot(glmperf, col = 'green', lwd = 2.5)
+plot(performance(lda.pred.prob.val, "tpr", "fpr"),  add = TRUE, col = 'royalblue', lwd = 2.5)
+plot(performance(tree.pred.prob.val, "tpr", "fpr"),  add = TRUE, col = 'orange', lwd = 2.5)
+plot(performance(rf.pred.prob.val, "tpr", "fpr"),  add = TRUE, col = 'black', lwd = 2.5)
+plot(performance(svm.pred.prob.val, "tpr", "fpr"),  add = TRUE, col = 'red', lwd = 2.5)
+abline(a = 0, b = 1, col = 'black', lwd = 2.5, lty = 2)
+title('ROC Curve')
+legend("bottomright", c("Logistic_Refression", "Linear_Discriminant_Analysis", "Decision_Tree","Random_Forest","SVM"), lty = c(1, 1, 1,1,1), lwd = c(1.4, 1.4, 1.4,1.4,1.4), col = c('green','royalblue', 'black', 'blue','red'))
+
+
+```
+
+It's clear that SVM has the worst AUC as compared to other models.
+
+The results and comparison of above mentioned models can be summarized in below table. 
+
+```{r, include=TRUE, echo=FALSE}
+
+#Model Comparison
+kable(results,align=rep("c",3)) %>% 
+  kable_styling(full_width = F) %>% 
+  column_spec(1:5,bold=T,border_right = T,color='royalblue')
+
+
+```
+
+It's clear that Random Forest provides best result for Sensitivity as compared to other models. Although, Specificity value is quite average for Random Forest. However, being churn prediction cae, where major focus is to engage potential churn customers, low Specificity can be tolerated. 
+
+<div style="page-break-after: always;"></div>
+
+### 4. **Conclusion**
+
+To conclude, below is the summary and highlights of this capstone project:
+
+* After loading dataset, We started with an exploratory analysis and key insights about the data.
+* First observation was that new-joiners are more prone to churn than old customers.
+* TotalCharges are positively correlated with Tenure & MonthlyCharges
+* It's observed that Partners & Dependants have significance in terms of customers loyalty.
+* It' also seen that monthly subscription customers have much higher churn rate as compared to the ones with yearly subscriptions.
+* As majority of dataset has categorical variables, we performed encoding to use for Modeling.
+* For modeling, we split the data in Train & Test datasets and trained models using Logistic Regression, LDA, Decision Tree, Random Forest and SVM. 
+* We validate the models by testing it on test dataset and summarizing the whole results as below:
+
+```{r models_conclusion, echo=FALSE}
+
+results$Specificity<-NULL
+results$Accuracy<-NULL
+
+#Conclusion
+kable(results,align=rep("c",3)) %>% 
+  kable_styling(full_width = F) %>% 
+  column_spec(1:3,bold=T,border_right = T,color='royalblue')
+
+```
+
+
+<div style="page-break-after: always;"></div>
+
+### 5. **References**
+
+* Kirui, C., Hong, L., Cheruiyot, W., & Kirui, H. (2013). Predicting Customer Churn in Mobile Telephony Industry using Probabilistic Classifiers in Data       Mining. IJCSI International Journal of Computer Science Issues, 10, 165-172.
+* Lariviere, B., & Van den Poel, D. (2005). Predicting Customer Retention and Profitability by using Random Forests and Regression Forests Techniques. Expert   Systems with Applications
+* Mattison, R. (2005). The Telco Churn Management Handbook. Oakwood Hills, Illinois,USA: XiT Press.
+* Nie, G., Rowe, W., Zhang, L., Tian, Y., & Shi, Y. (2011). Credit Card Churn Forecasting by Logistic Regression and Decision Tree. Expert Systems with        Applications
+* Ngai, E. W. T., Xiu, L., & Chau, D. C. K. (2009). Application of Data Mining Techniques in Customer Relationship Management: A Literature Review and         Classification. Expert Systems with Applications
+* Khan, A. A., Jamwal, S., & Sepehri, M. M. (2010). Applying data mining to customer churn prediction in an internet service provider. International Journal   of Computers and Applications
+
+
